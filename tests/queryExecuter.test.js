@@ -140,3 +140,42 @@ test("Execute SQL Query with LEFT JOIN with a WHERE clause filtering the join ta
   );
   expect(result.length).toEqual(1);
 });
+
+test("Execute SQL Query with RIGHT JOIN with a WHERE clause filtering the main table", async () => {
+  const query =
+    "SELECT student.name, enrollment.course FROM student RIGHT JOIN enrollment ON student.id=enrollment.student_id WHERE student.age < 25";
+  const result = await executeSelectQuery(query);
+  expect(result).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        "enrollment.course": "Mathematics",
+        "student.name": "Bob",
+      }),
+      expect.objectContaining({
+        "enrollment.course": "Biology",
+        "student.name": null,
+      }),
+    ])
+  );
+  expect(result.length).toEqual(2);
+});
+
+test("Execute SQL Query with RIGHT JOIN with a WHERE clause filtering the join table", async () => {
+  const query = `SELECT student.name, enrollment.course FROM student RIGHT JOIN enrollment ON student.id=enrollment.student_id WHERE enrollment.course = 'Chemistry'`;
+  const result = await executeSelectQuery(query);
+  expect(result).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        "enrollment.course": "Chemistry",
+        "student.name": "Jane",
+      }),
+    ])
+  );
+  expect(result.length).toEqual(1);
+});
+
+test("Execute SQL Query with RIGHT JOIN with a multiple WHERE clauses filtering the join table and main table", async () => {
+  const query = `SELECT student.name, enrollment.course FROM student RIGHT JOIN enrollment ON student.id=enrollment.student_id WHERE enrollment.course = 'Chemistry' AND student.age = 26`;
+  const result = await executeSelectQuery(query);
+  expect(result).toEqual([]);
+});

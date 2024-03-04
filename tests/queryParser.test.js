@@ -13,6 +13,8 @@ test("Parse SQL Query", () => {
     joinType: null,
     joinCondition: null,
     joinTable: null,
+    groupByFields: [],
+    hasAggregateWithoutGroupBy: false
   });
 });
 
@@ -45,6 +47,8 @@ test("Parse SQL Query with Multiple WHERE Clauses", () => {
     joinType: null,
     joinCondition: null,
     joinTable: null,
+    groupByFields: [],
+    hasAggregateWithoutGroupBy: false
   });
 });
 
@@ -59,10 +63,12 @@ test("Parse SQL Query with INNER JOIN", () => {
     joinType: "inner",
     joinTable: "enrollment",
     joinCondition: { left: "student.id", right: "enrollment.student_id" },
+    groupByFields: [],
+    hasAggregateWithoutGroupBy: false,
   });
 });
 
-test("Parse SQL Query with INNER JOIN and WHERE Clause", async () => {
+test("Parse SQL Query with INNER JOIN and WHERE Clause", () => {
   const query =
     "SELECT student.name, enrollment.course FROM student INNER JOIN enrollment ON student.id=enrollment.student_id WHERE student.name = John";
   const result = parseQuery(query);
@@ -79,5 +85,17 @@ test("Parse SQL Query with INNER JOIN and WHERE Clause", async () => {
     joinType: "inner",
     joinTable: "enrollment",
     joinCondition: { left: "student.id", right: "enrollment.student_id" },
+    groupByFields: [],
+    hasAggregateWithoutGroupBy: false,
   });
 });
+
+test("Parse SQL Query with GroupBy clause", () => {
+  const query = "SELECT id from student group by id, enrollment.student_id";
+  const result = parseQuery(query);
+  expect(result).toEqual(expect.objectContaining({
+    "groupByFields": expect.arrayContaining([
+      "id", "enrollment.student_id"
+    ])
+  }));
+})

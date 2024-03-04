@@ -2,7 +2,7 @@ const readCSV = require("./csvReader");
 const { parseQuery } = require("./queryParser");
 
 async function executeSelectQuery(query) {
-  const { fields, table, whereClauses, joinType, joinTable, joinCondition } =
+  const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy } =
     parseQuery(query); //id,name
   try {
     //fails when file is not found
@@ -20,7 +20,7 @@ async function executeSelectQuery(query) {
           data = peformLeftJoin(data, joinData, joinCondition, fields, table);
           break;
         case "RIGHT":
-          data = peformRightJoin(data, joinData, joinCondition, fields, table);
+          data = performRightJoin(data, joinData, joinCondition, fields, table);
           break;
       }
     }
@@ -32,6 +32,8 @@ async function executeSelectQuery(query) {
             whereClauses.every((clause) => evaluateCondition(row, clause))
           )
         : data;
+
+    data = applyGroupBy(data,groupByFields,fields);
 
     const result = [];
     filteredData.forEach((row) => {
@@ -50,23 +52,62 @@ async function executeSelectQuery(query) {
 }
 
 function evaluateCondition(row, clause) {
-  const { field, operator, value } = clause;
+  let { field, operator, value } = clause;
+
+  // Check if the field exists in the row
+  if (row[field] === undefined) {
+    throw new Error(`Invalid field: ${field}`);
+  }
+
+  // Parse row value and condition value based on their actual types
+  const rowValue = parseValue(row[field]);
+  let conditionValue = parseValue(value);
+
+  // console.log("EVALUATING", rowValue, operator, conditionValue, typeof (rowValue), typeof (conditionValue));
+
   switch (operator) {
     case "=":
-      return row[field] === value;
+      return rowValue === conditionValue;
     case "!=":
-      return row[field] !== value;
+      return rowValue !== conditionValue;
     case ">":
-      return row[field] > value;
+      return rowValue > conditionValue;
     case "<":
-      return row[field] < value;
+      return rowValue < conditionValue;
     case ">=":
-      return row[field] >= value;
+      return rowValue >= conditionValue;
     case "<=":
-      return row[field] <= value;
+      return rowValue <= conditionValue;
     default:
       throw new Error(`Unsupported operator: ${operator}`);
   }
+}
+// Helper function to parse value based on its apparent type
+function parseValue(value) {
+  // Return null or undefined as is
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  // If the value is a string enclosed in single or double quotes, remove them
+  if (
+    typeof value === "string" &&
+    ((value.startsWith("'") && value.endsWith("'")) ||
+      (value.startsWith('"') && value.endsWith('"')))
+  ) {
+    value = value.substring(1, value.length - 1);
+  }
+
+  // Check if value is a number
+  if (!isNaN(value) && value.trim() !== "") {
+    return Number(value);
+  }
+  // Assume value is a string if not a number
+  return value;
+}
+
+function applyGroupBy(data, groupByFields, aggregateFunctions){
+  
 }
 
 function performInnerJoin(data, joinData, joinCondition, fields, table) {
@@ -90,29 +131,71 @@ function performInnerJoin(data, joinData, joinCondition, fields, table) {
 }
 
 function peformLeftJoin(data, joinData, joinCondition, fields, table) {
-  
-}
-
-function peformRightJoin(data, joinData, joinCondition, fields, table) {
-  
-}
-
-// helper fxn to create a result row in right and left join
-function createResultRow(mainRow,joinRow,fields,table, includeAllMainFields){
-    const resultRow = {};
-
-    if(includeAllMainFields){
-        // include all fields from the main table
-        Object.keys(mainRow || {}).forEach(key => {
-            const prefixedKey = `${table}.${key}`;
-            resultRow[prefixedKey] = mainRow ? mainRow[key] : null;
-        });
-    }
-
-    fields.forEach(field => {
-        const [tableName,fieldName] = field.includes('.') ? field.split('.') : [table,field];
-        resultRow[field] = tableName === table && mainRow ? mainRow[fieldName] : joinRow ? joinRow[fieldName] : null;
+  return data.flatMap((mainRow) => {
+    const matchingJoinRows = joinData.filter((joinRow) => {
+      const mainValue = mainRow[joinCondition.left.split(".")[1]];
+      const joinValue = joinRow[joinCondition.right.split(".")[1]];
+      return mainValue === joinValue;
     });
+
+    if (matchingJoinRows.length === 0)
+      // add the main row with null values on joinTable
+      return [createResultRow(mainRow, null, fields, table, true)];
+
+    return matchingJoinRows.map((joinRow) =>
+      createResultRow(mainRow, joinRow, fields, table, true)
+    );
+  });
+}
+
+function performRightJoin(data, joinData, joinCondition, fields, table) {
+  // Cache the structure of a main table row (keys only)
+  const mainTableRowStructure = data.length > 0 ? Object.keys(data[0]).reduce((acc, key) => {
+          acc[key] = null; // Set all values to null initially
+          return acc;
+        }, {})
+      : {};
+
+  return joinData.map((joinRow) => {
+    const mainRowMatch = data.find((mainRow) => {
+      const mainValue = getValueFromRow(mainRow, joinCondition.left);
+      const joinValue = getValueFromRow(joinRow, joinCondition.right);
+      return mainValue === joinValue;
+    });
+
+    // Use the cached structure if no match is found
+    const mainRowToUse = mainRowMatch || mainTableRowStructure;
+
+    // Include all necessary fields from the 'student' table
+    return createResultRow(mainRowToUse, joinRow, fields, table, true);
+  });
+}
+
+// how workks?
+function getValueFromRow(row, compoundFieldName) {
+  const [tableName, fieldName] = compoundFieldName.split(".");
+  return row[`${tableName}.${fieldName}`] || row[fieldName];
+}
+
+//how workks?
+// helper fxn to create a result row in right and left join
+function createResultRow(mainRow,joinRow,fields,table,includeAllMainFields) {
+  const resultRow = {};
+
+  if (includeAllMainFields) {
+    // include all fields from the main table
+    Object.keys(mainRow || {}).forEach((key) => {
+      const prefixedKey = `${table}.${key}`;
+      resultRow[prefixedKey] = mainRow ? mainRow[key] : null;
+    });
+  }
+
+  fields.forEach((field) => {
+    const [tableName, fieldName] = field.includes(".") ? field.split("."): [table, field];
+    resultRow[field] = tableName === table && mainRow ? mainRow[fieldName]: (joinRow? joinRow[fieldName]: null);
+  });
+  // console.log("This is result row: ",resultRow);
+  return resultRow;
 }
 
 module.exports = executeSelectQuery;
