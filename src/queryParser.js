@@ -2,6 +2,12 @@ function parseQuery(query) {
   const originalQuery = query;
   query = query.trim();
 
+  const limitSplit = query.split(/\sLIMIT\s(\d+)/i);
+  query = limitSplit[0];
+  const limitMatch = limitSplit.length > 1 ? limitSplit[1].trim() : null;
+  let limit = null;
+  if(limitMatch) limit = parseInt(limitMatch);
+
   const orderBySplit = query.split(/\sORDER BY\s(.+)/i);
   query = orderBySplit[0];
   const orderByMatch = orderBySplit.length > 1 ? orderBySplit[1].trim() : null;
@@ -55,6 +61,7 @@ function parseQuery(query) {
     groupByFields,
     hasAggregateWithoutGroupBy,
     orderByFields,
+    limit,
   };
 }
 

@@ -11,7 +11,8 @@ async function executeSelectQuery(query) {
     joinCondition,
     groupByFields,
     hasAggregateWithoutGroupBy,
-    orderByFields
+    orderByFields,
+    limit
   } = parseQuery(query); //id,name
   try {
     //fails when file is not found
@@ -84,7 +85,9 @@ async function executeSelectQuery(query) {
           }
         }
       });
-
+      if(limit !== null){
+        return [tempResult].slice(0,limit);
+      }
       return [tempResult];
     }else if(groupByFields){
       groupResults = applyGroupBy(filteredData,groupByFields,fields);
@@ -97,6 +100,7 @@ async function executeSelectQuery(query) {
           return 0;
         })
       }
+      if(limit !== null) return groupResults.slice(0,limit);
       return groupResults;
     }
     data = groupResults;
@@ -120,6 +124,7 @@ async function executeSelectQuery(query) {
       });
       if (Object.keys(filteredRow).length !== 0) result.push(filteredRow);
     }); // [] of {id,name}
+    if(limit !== null) return result.slice(0,limit);
     return result;
   } catch (error) {
     console.log(error);
