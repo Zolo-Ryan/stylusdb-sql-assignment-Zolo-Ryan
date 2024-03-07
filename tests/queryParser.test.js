@@ -14,7 +14,8 @@ test("Parse SQL Query", () => {
     joinCondition: null,
     joinTable: null,
     groupByFields: null,
-    hasAggregateWithoutGroupBy: false
+    hasAggregateWithoutGroupBy: false,
+    orderByFields: null,
   });
 });
 
@@ -48,7 +49,8 @@ test("Parse SQL Query with Multiple WHERE Clauses", () => {
     joinCondition: null,
     joinTable: null,
     groupByFields: null,
-    hasAggregateWithoutGroupBy: false
+    hasAggregateWithoutGroupBy: false,
+    orderByFields: null,
   });
 });
 
@@ -65,6 +67,7 @@ test("Parse SQL Query with INNER JOIN", () => {
     joinCondition: { left: "student.id", right: "enrollment.student_id" },
     groupByFields: null,
     hasAggregateWithoutGroupBy: false,
+    orderByFields: null,
   });
 });
 
@@ -87,15 +90,37 @@ test("Parse SQL Query with INNER JOIN and WHERE Clause", () => {
     joinCondition: { left: "student.id", right: "enrollment.student_id" },
     groupByFields: null,
     hasAggregateWithoutGroupBy: false,
+    orderByFields: null,
   });
 });
 
 test("Parse SQL Query with GroupBy clause", () => {
   const query = "SELECT id from student group by id, enrollment.student_id";
   const result = parseQuery(query);
-  expect(result).toEqual(expect.objectContaining({
-    "groupByFields": expect.arrayContaining([
-      "id", "enrollment.student_id"
-    ])
-  }));
-})
+  expect(result).toEqual(
+    expect.objectContaining({
+      groupByFields: expect.arrayContaining(["id", "enrollment.student_id"]),
+    })
+  );
+});
+
+test("Parse SQL Query with ORDER BY", () => {
+  const query = "SELECT name FROM student ORDER BY name ASC";
+  const parsed = parseQuery(query);
+  expect(parsed.orderByFields).toEqual([{ fieldName: "name", order: "ASC" }]);
+});
+
+test("Parse SQL Query with ORDER BY and WHERE", () => {
+  const query = "SELECT name FROM student WHERE age > 20 ORDER BY name DESC";
+  const parsed = parseQuery(query);
+  expect(parsed.orderByFields).toEqual([{ fieldName: "name", order: "DESC" }]);
+  expect(parsed.whereClauses.length).toBeGreaterThan(0);
+});
+
+test("Parse SQL Query with ORDER BY and GROUP BY", () => {
+  const query =
+    "SELECT COUNT(id), age FROM student GROUP BY age ORDER BY age DESC";
+  const parsed = parseQuery(query);
+  expect(parsed.orderByFields).toEqual([{ fieldName: "age", order: "DESC" }]);
+  expect(parsed.groupByFields).toEqual(["age"]);
+});

@@ -11,6 +11,7 @@ async function executeSelectQuery(query) {
     joinCondition,
     groupByFields,
     hasAggregateWithoutGroupBy,
+    orderByFields
   } = parseQuery(query); //id,name
   try {
     //fails when file is not found
@@ -33,6 +34,7 @@ async function executeSelectQuery(query) {
       }
     }
 
+    //where domain
     //filter the data before returning result based on where
     const filteredData =
       whereClauses.length > 0 //every assuming only AND is given
@@ -40,8 +42,10 @@ async function executeSelectQuery(query) {
             whereClauses.every((clause) => evaluateCondition(row, clause))
           )
         : data;
+    data = filteredData;
 
-    let groupResults = filteredData;
+    // grouby domain
+    let groupResults = data;
     if (hasAggregateWithoutGroupBy) {
       const tempResult = {};
 
@@ -84,17 +88,37 @@ async function executeSelectQuery(query) {
       return [tempResult];
     }else if(groupByFields){
       groupResults = applyGroupBy(filteredData,groupByFields,fields);
+      if(orderByFields){
+        groupResults.sort((a,b) => {
+          for(let {fieldName,order} of orderByFields){
+            if(a[fieldName] < b[fieldName]) return order === 'ASC' ? -1: 1;
+            if(a[fieldName] > b[fieldName]) return order === 'ASC' ? 1: -1;
+          }
+          return 0;
+        })
+      }
       return groupResults;
     }
+    data = groupResults;
 
+    if(orderByFields){
+      data.sort((a,b) => {
+        for(let {fieldName,order} of orderByFields){
+          if(a[fieldName] < b[fieldName]) return order === 'ASC' ? -1: 1;
+          if(a[fieldName] > b[fieldName]) return order === 'ASC' ? 1: -1;
+        }
+        return 0;
+      })
+    }
+    
     const result = [];
-    filteredData.forEach((row) => {
-      const fileteredRow = {};
+    data.forEach((row) => {
+      const filteredRow = {};
       // what if the asked field is not in the data? handled => []
       fields.forEach((field) => {
-        if (row[field] !== undefined) fileteredRow[field] = row[field];
+        if (row[field] !== undefined) filteredRow[field] = row[field];
       });
-      if (Object.keys(fileteredRow).length !== 0) result.push(fileteredRow);
+      if (Object.keys(filteredRow).length !== 0) result.push(filteredRow);
     }); // [] of {id,name}
     return result;
   } catch (error) {
