@@ -2,8 +2,16 @@ const readCSV = require("./csvReader");
 const { parseQuery } = require("./queryParser");
 
 async function executeSelectQuery(query) {
-  const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy } =
-    parseQuery(query); //id,name
+  const {
+    fields,
+    table,
+    whereClauses,
+    joinType,
+    joinTable,
+    joinCondition,
+    groupByFields,
+    hasAggregateWithoutGroupBy,
+  } = parseQuery(query); //id,name
   try {
     //fails when file is not found
     let data = await readCSV(`${table}.csv`);
@@ -33,7 +41,51 @@ async function executeSelectQuery(query) {
           )
         : data;
 
-    data = applyGroupBy(data,groupByFields,fields);
+    let groupResults = filteredData;
+    if (hasAggregateWithoutGroupBy) {
+      const tempResult = {};
+
+      fields.forEach((field) => {
+        const match = /(\w+)\((\*|\w+)\)/.exec(field);
+        if (match) {
+          const [, aggFunc, aggField] = match;
+          switch (aggFunc.toUpperCase()) {
+            case "COUNT":
+              result[field] = filteredData.length;
+              break;
+            case "SUM":
+              result[field] = filteredData.reduce(
+                (acc, row) => acc + parseFloat(row[aggField]),
+                0
+              );
+              break;
+            case "AVG":
+              result[field] =
+                filteredData.reduce(
+                  (acc, row) => acc + parseFloat(row[aggField]),
+                  0
+                ) / filteredData.length;
+              break;
+            case "MIN":
+              result[field] = Math.min(
+                ...filteredData.map((row) => parseFloat(row[aggField]))
+              );
+              break;
+            case "MAX":
+              result[field] = Math.max(
+                ...filteredData.map((row) => parseFloat(row[aggField]))
+              );
+              break;
+            // Additional aggregate functions can be handled here
+          }
+        }
+      });
+
+      return [tempResult];
+    }else if(groupByFields){
+      groupResults = applyGroupBy(filteredData,groupByFields,fields);
+      return groupResults;
+    }
 
     const result = [];
     filteredData.forEach((row) => {
@@ -106,8 +158,81 @@ function parseValue(value) {
   return value;
 }
 
-function applyGroupBy(data, groupByFields, aggregateFunctions){
-  
+function applyGroupBy(data, groupByFields, aggregateFunctions) {
+  const groupResults = {};
+
+  data.forEach((row) => {
+    // Generate a key for the group
+    const groupKey = groupByFields.map((field) => row[field]).join("-");
+
+    // Initialize group in results if it doesn't exist
+    if (!groupResults[groupKey]) {
+      groupResults[groupKey] = { count: 0, sums: {}, mins: {}, maxes: {} };
+      groupByFields.forEach(
+        (field) => (groupResults[groupKey][field] = row[field])
+      );
+    }
+
+    // Aggregate calculations
+    groupResults[groupKey].count += 1;
+    aggregateFunctions.forEach((func) => {
+      const match = /(\w+)\((\w+)\)/.exec(func);
+      if (match) {
+        const [, aggFunc, aggField] = match;
+        const value = parseFloat(row[aggField]);
+
+        switch (aggFunc.toUpperCase()) {
+          case "SUM":
+            groupResults[groupKey].sums[aggField] =
+              (groupResults[groupKey].sums[aggField] || 0) + value;
+            break;
+          case "MIN":
+            groupResults[groupKey].mins[aggField] = Math.min(
+              groupResults[groupKey].mins[aggField] || value,
+              value
+            );
+            break;
+          case "MAX":
+            groupResults[groupKey].maxes[aggField] = Math.max(
+              groupResults[groupKey].maxes[aggField] || value,
+              value
+            );
+            break;
+          // Additional aggregate functions can be added here
+        }
+      }
+    });
+  });
+
+  // Convert grouped results into an array format
+  return Object.values(groupResults).map((group) => {
+    // Construct the final grouped object based on required fields
+    const finalGroup = {};
+    groupByFields.forEach((field) => (finalGroup[field] = group[field]));
+    aggregateFunctions.forEach((func) => {
+      const match = /(\w+)\((\*|\w+)\)/.exec(func);
+      if (match) {
+        const [, aggFunc, aggField] = match;
+        switch (aggFunc.toUpperCase()) {
+          case "SUM":
+            finalGroup[func] = group.sums[aggField];
+            break;
+          case "MIN":
+            finalGroup[func] = group.mins[aggField];
+            break;
+          case "MAX":
+            finalGroup[func] = group.maxes[aggField];
+            break;
+          case "COUNT":
+            finalGroup[func] = group.count;
+            break;
+          // Additional aggregate functions can be handled here
+        }
+      }
+    });
+
+    return finalGroup;
+  });
 }
 
 function performInnerJoin(data, joinData, joinCondition, fields, table) {
@@ -150,7 +275,9 @@ function peformLeftJoin(data, joinData, joinCondition, fields, table) {
 
 function performRightJoin(data, joinData, joinCondition, fields, table) {
   // Cache the structure of a main table row (keys only)
-  const mainTableRowStructure = data.length > 0 ? Object.keys(data[0]).reduce((acc, key) => {
+  const mainTableRowStructure =
+    data.length > 0
+      ? Object.keys(data[0]).reduce((acc, key) => {
           acc[key] = null; // Set all values to null initially
           return acc;
         }, {})
@@ -179,7 +306,13 @@ function getValueFromRow(row, compoundFieldName) {
 
 //how workks?
 // helper fxn to create a result row in right and left join
-function createResultRow(mainRow,joinRow,fields,table,includeAllMainFields) {
+function createResultRow(
+  mainRow,
+  joinRow,
+  fields,
+  table,
+  includeAllMainFields
+) {
   const resultRow = {};
 
   if (includeAllMainFields) {
@@ -191,8 +324,15 @@ function createResultRow(mainRow,joinRow,fields,table,includeAllMainFields) {
   }
 
   fields.forEach((field) => {
-    const [tableName, fieldName] = field.includes(".") ? field.split("."): [table, field];
-    resultRow[field] = tableName === table && mainRow ? mainRow[fieldName]: (joinRow? joinRow[fieldName]: null);
+    const [tableName, fieldName] = field.includes(".")
+      ? field.split(".")
+      : [table, field];
+    resultRow[field] =
+      tableName === table && mainRow
+        ? mainRow[fieldName]
+        : joinRow
+        ? joinRow[fieldName]
+        : null;
   });
   // console.log("This is result row: ",resultRow);
   return resultRow;

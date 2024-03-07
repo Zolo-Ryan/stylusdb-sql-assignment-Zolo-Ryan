@@ -1,13 +1,13 @@
 {
   "name": "stylusdbstudy",
   "version": "1.0.0",
-  "description": "",
+  "description": "Learning how to create a database from scratch",
   "main": "index.js",
   "scripts": {
     "test": "jest"
   },
   "keywords": [],
-  "author": "",
+  "author": "Zolo-Ryan",
   "license": "ISC",
   "devDependencies": {
     "csv-parser": "^3.0.0",

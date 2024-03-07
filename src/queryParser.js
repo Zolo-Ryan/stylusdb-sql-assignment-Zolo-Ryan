@@ -25,7 +25,7 @@ function parseQuery(query){
     let whereClauses = [];
     if(whereClause) whereClauses = parseWhereClauses(whereClause);
 
-    let groupByFields = [];
+    let groupByFields = null;
     if(groupByClause) groupByFields = parseGroupByClause(groupByClause);
 
     //check for the presence of aggregat fxns without groupby
