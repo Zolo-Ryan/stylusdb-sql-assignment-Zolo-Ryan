@@ -2,19 +2,19 @@ const readCSV = require("./csvReader");
 const { parseQuery } = require("./queryParser");
 
 async function executeSelectQuery(query) {
-  const { 
-    fields,
-    table,
-    whereClauses,
-    joinType,
-    joinTable,
-    joinCondition,
-    groupByFields,
-    hasAggregateWithoutGroupBy,
-    orderByFields,
-    limit
-  } = parseQuery(query); //id,name
   try {
+    const {
+      fields,
+      table,
+      whereClauses,
+      joinType,
+      joinTable,
+      joinCondition,
+      groupByFields,
+      hasAggregateWithoutGroupBy,
+      orderByFields,
+      limit,
+    } = parseQuery(query); //id,name
     //fails when file is not found
     let data = await readCSV(`${table}.csv`);
 
@@ -85,36 +85,36 @@ async function executeSelectQuery(query) {
           }
         }
       });
-      if(limit !== null){
-        return [tempResult].slice(0,limit);
+      if (limit !== null) {
+        return [tempResult].slice(0, limit);
       }
       return [tempResult];
-    }else if(groupByFields){
-      groupResults = applyGroupBy(filteredData,groupByFields,fields);
-      if(orderByFields){
-        groupResults.sort((a,b) => {
-          for(let {fieldName,order} of orderByFields){
-            if(a[fieldName] < b[fieldName]) return order === 'ASC' ? -1: 1;
-            if(a[fieldName] > b[fieldName]) return order === 'ASC' ? 1: -1;
+    } else if (groupByFields) {
+      groupResults = applyGroupBy(filteredData, groupByFields, fields);
+      if (orderByFields) {
+        groupResults.sort((a, b) => {
+          for (let { fieldName, order } of orderByFields) {
+            if (a[fieldName] < b[fieldName]) return order === "ASC" ? -1 : 1;
+            if (a[fieldName] > b[fieldName]) return order === "ASC" ? 1 : -1;
           }
           return 0;
-        })
+        });
       }
-      if(limit !== null) return groupResults.slice(0,limit);
+      if (limit !== null) return groupResults.slice(0, limit);
       return groupResults;
     }
     data = groupResults;
 
-    if(orderByFields){
-      data.sort((a,b) => {
-        for(let {fieldName,order} of orderByFields){
-          if(a[fieldName] < b[fieldName]) return order === 'ASC' ? -1: 1;
-          if(a[fieldName] > b[fieldName]) return order === 'ASC' ? 1: -1;
+    if (orderByFields) {
+      data.sort((a, b) => {
+        for (let { fieldName, order } of orderByFields) {
+          if (a[fieldName] < b[fieldName]) return order === "ASC" ? -1 : 1;
+          if (a[fieldName] > b[fieldName]) return order === "ASC" ? 1 : -1;
         }
         return 0;
-      })
+      });
     }
-    
+
     const result = [];
     data.forEach((row) => {
       const filteredRow = {};
@@ -124,11 +124,10 @@ async function executeSelectQuery(query) {
       });
       if (Object.keys(filteredRow).length !== 0) result.push(filteredRow);
     }); // [] of {id,name}
-    if(limit !== null) return result.slice(0,limit);
+    if (limit !== null) return result.slice(0, limit);
     return result;
   } catch (error) {
-    console.log(error);
-    return [];
+    throw new Error(`Error executing query: ${error.message}`);
   }
 }
 
