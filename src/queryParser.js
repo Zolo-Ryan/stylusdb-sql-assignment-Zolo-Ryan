@@ -9,6 +9,12 @@ function parseQuery(query) {
     let limit = null;
     if (limitMatch) limit = parseInt(limitMatch);
 
+    let isDistinct = false;
+    if(query.toUpperCase().includes("SELECT DISTINCT")){
+      isDistinct = true;
+      query = query.toUpperCase().replace("SELECT DISTINCT","SELECT");
+    }
+
     const orderBySplit = query.split(/\sORDER BY\s(.+)/i);
     query = orderBySplit[0];
     const orderByMatch =
@@ -56,13 +62,14 @@ function parseQuery(query) {
       aggregateFunctionRegex.test(originalQuery) && !groupByFields;
 
     return {
-      fields: fields.split(",").map((field) => field.trim().toLowerCase()),
       table: table.trim().toLowerCase(),
-      whereClauses,
       joinType,
       joinTable,
       joinCondition,
+      whereClauses,
       groupByFields,
+      isDistinct,
+      fields: fields.split(",").map((field) => field.trim().toLowerCase()),
       hasAggregateWithoutGroupBy,
       orderByFields,
       limit,

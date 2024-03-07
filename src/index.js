@@ -14,6 +14,7 @@ async function executeSelectQuery(query) {
       hasAggregateWithoutGroupBy,
       orderByFields,
       limit,
+      isDistinct,
     } = parseQuery(query); //id,name
     //fails when file is not found
     let data = await readCSV(`${table}.csv`);
@@ -85,12 +86,32 @@ async function executeSelectQuery(query) {
           }
         }
       });
+      // applying distinct
+      if(isDistinct)
+        tempResult = { ...applyDistinct(tempResult, fields) };
+
+      //sorting - order by
+      if (orderByFields) {
+        tempResult = {
+          ...[tempResult].sort((a, b) => {
+            for (let { fieldName, order } of orderByFields) {
+              if (a[fieldName] < b[fieldName]) return order === "ASC" ? -1 : 1;
+              if (a[fieldName] > b[fieldName]) return order === "ASC" ? 1 : -1;
+            }
+            return 0;
+          }),
+        };
+      }
+      // applying limit
       if (limit !== null) {
         return [tempResult].slice(0, limit);
       }
       return [tempResult];
     } else if (groupByFields) {
       groupResults = applyGroupBy(filteredData, groupByFields, fields);
+      if(isDistinct)
+        groupResults = applyDistinct(groupResults, fields);
+
       if (orderByFields) {
         groupResults.sort((a, b) => {
           for (let { fieldName, order } of orderByFields) {
@@ -100,11 +121,26 @@ async function executeSelectQuery(query) {
           return 0;
         });
       }
+
       if (limit !== null) return groupResults.slice(0, limit);
       return groupResults;
     }
     data = groupResults;
 
+    //select
+    const result = [];
+    data.forEach((row) => {
+      const filteredRow = {};
+      // what if the asked field is not in the data? handled => []
+      fields.forEach((field) => {
+        if (row[field] !== undefined) filteredRow[field] = row[field];
+      });
+      if (Object.keys(filteredRow).length !== 0) result.push(filteredRow);
+    }); // [] of {id,name}
+    if(isDistinct)
+      data = applyDistinct(result, fields);
+    else data = result;
+    // order by
     if (orderByFields) {
       data.sort((a, b) => {
         for (let { fieldName, order } of orderByFields) {
@@ -115,20 +151,20 @@ async function executeSelectQuery(query) {
       });
     }
 
-    const result = [];
-    data.forEach((row) => {
-      const filteredRow = {};
-      // what if the asked field is not in the data? handled => []
-      fields.forEach((field) => {
-        if (row[field] !== undefined) filteredRow[field] = row[field];
-      });
-      if (Object.keys(filteredRow).length !== 0) result.push(filteredRow);
-    }); // [] of {id,name}
+    //limit
     if (limit !== null) return result.slice(0, limit);
-    return result;
+    return data;
   } catch (error) {
     throw new Error(`Error executing query: ${error.message}`);
   }
+}
+
+function applyDistinct(data, fields) {
+  return [
+    ...new Map(
+      data.map((item) => [fields.map((field) => item[field]).join("|"), item])
+    ).values(),
+  ];
 }
 
 function evaluateCondition(row, clause) {

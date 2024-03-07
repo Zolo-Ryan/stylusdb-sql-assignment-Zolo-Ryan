@@ -209,44 +209,98 @@ test("Execute SQL Query with ORDER BY and GROUP BY", async () => {
   ]);
 });
 
-test("Execute SQL Query with aggregate fxn and limit clause without group by", async() => {
+test("Execute SQL Query with aggregate fxn and limit clause without group by", async () => {
   const query = "SELECT COUNT(id), age FROM student LIMIT 2";
   const result = await executeSelectQuery(query);
   expect(result.length).toBe(2);
-})
-test('Execute SQL Query with standard LIMIT clause', async () => {
-  const query = 'SELECT id, name FROM student LIMIT 2';
+});
+test("Execute SQL Query with standard LIMIT clause", async () => {
+  const query = "SELECT id, name FROM student LIMIT 2";
   const result = await executeSelectQuery(query);
   expect(result.length).toEqual(2);
 });
 
-test('Execute SQL Query with LIMIT clause equal to total rows', async () => {
-  const query = 'SELECT id, name FROM student LIMIT 4';
+test("Execute SQL Query with LIMIT clause equal to total rows", async () => {
+  const query = "SELECT id, name FROM student LIMIT 4";
   const result = await executeSelectQuery(query);
   expect(result.length).toEqual(4);
 });
 
-test('Execute SQL Query with LIMIT clause exceeding total rows', async () => {
-  const query = 'SELECT id, name FROM student LIMIT 10';
+test("Execute SQL Query with LIMIT clause exceeding total rows", async () => {
+  const query = "SELECT id, name FROM student LIMIT 10";
   const result = await executeSelectQuery(query);
   expect(result.length).toEqual(4); // Total rows in student.csv
 });
 
-test('Execute SQL Query with LIMIT 0', async () => {
-  const query = 'SELECT id, name FROM student LIMIT 0';
+test("Execute SQL Query with LIMIT 0", async () => {
+  const query = "SELECT id, name FROM student LIMIT 0";
   const result = await executeSelectQuery(query);
   expect(result.length).toEqual(0);
 });
 
-test('Execute SQL Query with LIMIT and ORDER BY clause', async () => {
-  const query = 'SELECT id, name FROM student ORDER BY age DESC LIMIT 2';
+test("Execute SQL Query with LIMIT and ORDER BY clause", async () => {
+  const query = "SELECT id, name FROM student ORDER BY age DESC LIMIT 2";
   const result = await executeSelectQuery(query);
   expect(result.length).toEqual(2);
-  expect(result[0].name).toEqual('John');
-  expect(result[1].name).toEqual('Jane');
+  expect(result[0].name).toEqual("John");
+  expect(result[1].name).toEqual("Jane");
 });
 
-test('Error Handling with Malformed Query', async () => {
-  const query = 'SELECT FROM table'; // intentionally malformed
-  await expect(executeSelectQuery(query)).rejects.toThrow("Error executing query: Query parsing error: Invalid SELECT format");
+test("Error Handling with Malformed Query", async () => {
+  const query = "SELECT FROM table"; // intentionally malformed
+  await expect(executeSelectQuery(query)).rejects.toThrow(
+    "Error executing query: Query parsing error: Invalid SELECT format"
+  );
+});
+
+test("Basic DISTINCT Usage", async () => {
+  const query = "SELECT DISTINCT age FROM student";
+  const result = await executeSelectQuery(query);
+  expect(result).toEqual([
+    { age: "30" },
+    { age: "25" },
+    { age: "22" },
+    { age: "24" },
+  ]);
+});
+
+test("DISTINCT with Multiple Columns", async () => {
+  const query = "SELECT DISTINCT student_id, course FROM enrollment";
+  const result = await executeSelectQuery(query);
+  // Expecting unique combinations of student_id and course
+  console.log(result)
+  expect(result).toEqual([
+    { student_id: "1", course: "Mathematics" },
+    { student_id: "1", course: "Physics" },
+    { student_id: "2", course: "Chemistry" },
+    { student_id: "3", course: "Mathematics" },
+    { student_id: "5", course: "Biology" },
+  ]);
+});
+
+// Not a good test right now
+test("DISTINCT with WHERE Clause", async () => {
+  const query = 'SELECT DISTINCT course FROM enrollment WHERE student_id = "1"';
+  const result = await executeSelectQuery(query);
+  // Expecting courses taken by student with ID 1
+  expect(result).toEqual([{ course: "Mathematics" }, { course: "Physics" }]);
+});
+
+test("DISTINCT with JOIN Operations", async () => {
+  const query =
+    "SELECT DISTINCT student.name FROM student INNER JOIN enrollment ON student.id = enrollment.student_id";
+  const result = await executeSelectQuery(query);
+  // Expecting names of students who are enrolled in any course
+  expect(result).toEqual([
+    { "student.name": "John" },
+    { "student.name": "Jane" },
+    { "student.name": "Bob" },
+  ]);
+});
+
+test("DISTINCT with ORDER BY and LIMIT", async () => {
+  const query = "SELECT DISTINCT age FROM student ORDER BY age DESC LIMIT 2";
+  const result = await executeSelectQuery(query);
+  // Expecting the two highest unique ages
+  expect(result).toEqual([{ age: "30" }, { age: "25" }]);
 });
