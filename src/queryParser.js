@@ -10,9 +10,9 @@ function parseQuery(query) {
     if (limitMatch) limit = parseInt(limitMatch);
 
     let isDistinct = false;
-    if(query.toUpperCase().includes("SELECT DISTINCT")){
+    if (query.toUpperCase().includes("SELECT DISTINCT")) {
       isDistinct = true;
-      query = query.toUpperCase().replace("SELECT DISTINCT","SELECT");
+      query = query.toUpperCase().replace("SELECT DISTINCT", "SELECT");
     }
 
     const orderBySplit = query.split(/\sORDER BY\s(.+)/i);
@@ -108,17 +108,28 @@ function parseJoinClause(query) {
 function parseWhereClauses(whereString) {
   const conditionRegex = /(.*?)(=|!=|>=|<=|>|<)(.*)/;
   return whereString.split(/ AND | OR /i).map((conditionString) => {
-    const match = conditionString.match(conditionRegex);
-
-    if (match) {
-      const [, field, operator, value] = match;
+    let conditionStringtemp = conditionString.toUpperCase();
+    if (conditionStringtemp.includes("LIKE")) {
+      const [field, pattern] = conditionString.split(/\sLIKE\s/i);
       return {
         field: field.trim().toLowerCase(),
-        operator,
-        value: value.trim(),
+        operator: "LIKE",
+        //removes the trailing and starting inverted quotes $1 = the items in th capturing group
+        value: pattern.trim().replace(/^'(.*)'$/, "$1"),
       };
+    } else {
+      const match = conditionString.match(conditionRegex);
+
+      if (match) {
+        const [, field, operator, value] = match;
+        return {
+          field: field.trim().toLowerCase(),
+          operator,
+          value: value.trim(),
+        };
+      }
+      throw new Error("Invalid WHERE clause format");
     }
-    throw new Error("Invalid WHERE clause format");
   });
 }
 

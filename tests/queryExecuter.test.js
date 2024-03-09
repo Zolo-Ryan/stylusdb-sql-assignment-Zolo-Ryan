@@ -268,7 +268,6 @@ test("DISTINCT with Multiple Columns", async () => {
   const query = "SELECT DISTINCT student_id, course FROM enrollment";
   const result = await executeSelectQuery(query);
   // Expecting unique combinations of student_id and course
-  console.log(result)
   expect(result).toEqual([
     { student_id: "1", course: "Mathematics" },
     { student_id: "1", course: "Physics" },
@@ -303,4 +302,40 @@ test("DISTINCT with ORDER BY and LIMIT", async () => {
   const result = await executeSelectQuery(query);
   // Expecting the two highest unique ages
   expect(result).toEqual([{ age: "30" }, { age: "25" }]);
+});
+
+test('Execute SQL Query with LIKE Operator for Name', async () => {
+  const query = "SELECT name FROM student WHERE name LIKE '%Jane%'";
+  const result = await executeSelectQuery(query);
+  // Expecting names containing 'Jane'
+  console.log(result);
+  expect(result).toEqual([{ name: 'Jane' }]);
+});
+
+test('Execute SQL Query with LIKE Operator and Wildcards', async () => {
+  const query = "SELECT name FROM student WHERE name LIKE 'J%'";
+  const result = await executeSelectQuery(query);
+  // Expecting names starting with 'J'
+  expect(result).toEqual([{ name: 'John' },{ name: 'Jane' }]);
+});
+
+test('Execute SQL Query with LIKE Operator Case Insensitive', async () => {
+  const query = "SELECT name FROM student WHERE name LIKE '%bob%'";
+  const result = await executeSelectQuery(query);
+  // Expecting names 'Bob' (case insensitive)
+  expect(result).toEqual([{ name: 'Bob' }]);
+});
+
+test('Execute SQL Query with LIKE Operator and DISTINCT', async () => {
+  const query = "SELECT DISTINCT name FROM student WHERE name LIKE '%e%'";
+  const result = await executeSelectQuery(query);
+  // Expecting unique names containing 'e'
+  expect(result).toEqual([{ name: 'Jane' }, { name: 'Alice' }]);
+});
+
+test('LIKE with ORDER BY and LIMIT', async () => {
+  const query = "SELECT name FROM student WHERE name LIKE '%a%' ORDER BY name ASC LIMIT 2";
+  const result = await executeSelectQuery(query);
+  // Expecting the first two names alphabetically that contain 'a'
+  expect(result).toEqual([{ name: 'Alice' }, { name: 'Jane' }]);
 });

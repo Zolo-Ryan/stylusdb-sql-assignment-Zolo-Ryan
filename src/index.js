@@ -179,6 +179,12 @@ function evaluateCondition(row, clause) {
   const rowValue = parseValue(row[field]);
   let conditionValue = parseValue(value);
 
+  if(operator === 'LIKE'){
+    const regexPattern = '^' + value.replace(/%/g,'.*').replace(/_/g,'.') + '$';
+    const regex = new RegExp(regexPattern,'i');
+    return regex.test(rowValue);
+  }
+
   // console.log("EVALUATING", rowValue, operator, conditionValue, typeof (rowValue), typeof (conditionValue));
 
   switch (operator) {
