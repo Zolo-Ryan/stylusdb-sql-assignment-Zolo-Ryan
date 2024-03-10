@@ -4,7 +4,8 @@
   "description": "Learning how to create a database from scratch",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test-verbose": "jest --verbose"
   },
   "bin": {
     "stylusdb-cli": "node ./cli.js"
