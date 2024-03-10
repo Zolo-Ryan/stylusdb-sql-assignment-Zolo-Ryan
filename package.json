@@ -1,19 +1,22 @@
 {
   "name": "stylusdbstudy",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Learning how to create a database from scratch",
   "main": "index.js",
   "scripts": {
     "test": "jest"
   },
+  "bin": {
+    "stylusdb-cli": "node ./cli.js"
+  },
   "keywords": [],
   "author": "Zolo-Ryan",
   "license": "ISC",
   "devDependencies": {
-    "csv-parser": "^3.0.0",
     "jest": "^29.7.0"
   },
   "dependencies": {
+    "csv-parser": "^3.0.0",
     "json2csv": "^6.0.0-alpha.2"
   }
 }
