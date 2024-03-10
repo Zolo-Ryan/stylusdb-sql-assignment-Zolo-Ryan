@@ -1,4 +1,4 @@
-function parseQuery(query) {
+function parseSELECTQuery(query) {
   try {
     const originalQuery = query;
     query = query.trim();
@@ -79,6 +79,20 @@ function parseQuery(query) {
   }
 }
 
+function parseINSERTQuery(query){
+  const INSERTRegex = /^INSERT\s+INTO\s+(.+)\s+\((.+)\)\s*VALUES\s*\((.+)\)/i;
+  const INSERTMatch = query.trim().match(INSERTRegex);
+  if(!INSERTMatch) throw new Error("Tnvalid INSERT INTO syntax");
+
+  const [,table, columns, values] = INSERTMatch;
+  return {
+    type: 'INSERT',
+    table: table.trim().toLowerCase(),
+    columns: columns.split(',').map(column => column.trim().toLowerCase()),
+    values: values.split(",").map(column => column.trim())
+  }
+}
+
 function parseGroupByClause(query) {
   return query.split(",").map((field) => field.trim().toLowerCase());
 }
@@ -133,4 +147,4 @@ function parseWhereClauses(whereString) {
   });
 }
 
-module.exports = { parseQuery, parseJoinClause };
+module.exports = { parseSELECTQuery, parseJoinClause, parseINSERTQuery };

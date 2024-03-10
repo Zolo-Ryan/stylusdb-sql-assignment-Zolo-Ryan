@@ -1,7 +1,7 @@
-const readCSV = require("./csvReader");
-const { parseQuery } = require("./queryParser");
+const {readCSV, writeCSV} = require("./csvStorage");
+const { parseSELECTQuery, parseINSERTQuery } = require("./queryParser");
 
-async function executeSelectQuery(query) {
+async function executeSELECTQuery(query) {
   try {
     const {
       fields,
@@ -15,7 +15,7 @@ async function executeSelectQuery(query) {
       orderByFields,
       limit,
       isDistinct,
-    } = parseQuery(query); //id,name
+    } = parseSELECTQuery(query); //id,name
     //fails when file is not found
     let data = await readCSV(`${table}.csv`);
 
@@ -157,6 +157,27 @@ async function executeSelectQuery(query) {
   } catch (error) {
     throw new Error(`Error executing query: ${error.message}`);
   }
+}
+
+async function executeINSERTQuery(query){
+  const {table,columns, values} = parseINSERTQuery(query);
+
+  //currently whole file is loaded into memory and then written back into file
+  const data = await readCSV(`${table}.csv`);
+
+  const newRow = {};
+  columns.forEach((column,index) => {
+    let value = values[index];
+    if(value.startsWith("'") && value.endsWith("'"))
+      value = value.substring(1,value.length-1);
+    newRow[column] = value;
+  })
+
+  data.push(newRow);
+
+  await writeCSV(`${table}.csv`,data);
+
+  return {message: `Row inserted Successfully`};
 }
 
 function applyDistinct(data, fields) {
@@ -408,4 +429,4 @@ function createResultRow(
   return resultRow;
 }
 
-module.exports = executeSelectQuery;
+module.exports = {executeSELECTQuery, executeINSERTQuery};
