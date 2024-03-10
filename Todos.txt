@@ -1,2 +1,4 @@
-Left join not working
-make right join
+revisit joins ==> 8,9
+revisit group by ==> 10
+read about ci/cd, husky(tool h) == > 16
+re-read tests of insert and delete executers

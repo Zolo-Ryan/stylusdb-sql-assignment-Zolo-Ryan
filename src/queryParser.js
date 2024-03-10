@@ -93,6 +93,29 @@ function parseINSERTQuery(query){
   }
 }
 
+function parseDELETEQuery(query){
+  query = query.trim();
+  const whereSplit = query.split(/\sWHERE\s/i);
+  query = whereSplit[0]; // everthing before where
+
+  const DELETERegex = /^DELETE\s+FROM\s+(.+)/i;
+  const DELETEMatch = query.match(DELETERegex);
+  if(!DELETEMatch)
+    throw new Error("Invalid DELETE Query passsed!");
+
+  const [,table] = DELETEMatch;
+
+  const whereClause = whereSplit.length > 1 ? whereSplit[1].trim() : null;
+  let whereClauses = [];
+  if (whereClause) whereClauses = parseWhereClauses(whereClause);
+
+  return {
+    type: 'DELETE',
+    table: table.trim().toLowerCase(),
+    whereClauses
+  }
+}
+
 function parseGroupByClause(query) {
   return query.split(",").map((field) => field.trim().toLowerCase());
 }
@@ -147,4 +170,4 @@ function parseWhereClauses(whereString) {
   });
 }
 
-module.exports = { parseSELECTQuery, parseJoinClause, parseINSERTQuery };
+module.exports = { parseSELECTQuery, parseJoinClause, parseINSERTQuery, parseDELETEQuery };

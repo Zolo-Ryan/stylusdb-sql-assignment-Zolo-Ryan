@@ -1,5 +1,5 @@
 const {readCSV, writeCSV} = require("./csvStorage");
-const { parseSELECTQuery, parseINSERTQuery } = require("./queryParser");
+const { parseSELECTQuery, parseINSERTQuery, parseDELETEQuery } = require("./queryParser");
 
 async function executeSELECTQuery(query) {
   try {
@@ -178,6 +178,21 @@ async function executeINSERTQuery(query){
   await writeCSV(`${table}.csv`,data);
 
   return {message: `Row inserted Successfully`};
+}
+
+async function executeDELETEQuery(query){
+  const {type, table ,whereClauses} = parseDELETEQuery(query);
+  let data = await readCSV(`${table}.csv`);
+
+  if(whereClauses.length > 0){
+    // rows which satisfy the where clauses will be removed, hence must return false value, hence ! used
+    data = data.filter(row => !whereClauses.every(clause => evaluateCondition(row,clause)));
+  }else {
+    // no wherclause provided so delete entire table
+    data = [];
+  }
+  await writeCSV(`${table}.csv`,data);
+  return {message: 'Rows deleted successfully.'}
 }
 
 function applyDistinct(data, fields) {
@@ -429,4 +444,4 @@ function createResultRow(
   return resultRow;
 }
 
-module.exports = {executeSELECTQuery, executeINSERTQuery};
+module.exports = {executeSELECTQuery, executeINSERTQuery, executeDELETEQuery};
