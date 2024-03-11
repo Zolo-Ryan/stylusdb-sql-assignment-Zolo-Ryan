@@ -1,4 +1,4 @@
-const {readCSV, writeCSV} = require("../src/csvStorage.js");
+const {readCSV, writeCSV} = require("../../src/csvStorage.js");
 const fs = require("fs");
 
 test("Read CSV file", async () => {
