@@ -1,6 +1,7 @@
-// test("one",() => {
-//     expect(1).toBe(1)
-// })
+test("one",() => {
+    expect(1).toBe(1)
+})
+
 // const fs = require('fs');
 // const { executeSELECTQuery } = require('../../src/index.js');
 // const jestConsole = console;
