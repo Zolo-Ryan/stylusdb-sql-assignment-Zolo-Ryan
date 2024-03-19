@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "test-verbose": "jest --verbose"
+    "test-verbose": "jest --verbose",
+    "test:final": "jest --testPathPattern=./tests/final",
+    "test:largeFile": "jest --testPathPattern=./tests/final/approximateLargeFile.test.js"
   },
   "bin": {
     "stylusdb-cli": "node ./cli.js"
@@ -14,10 +16,12 @@
   "author": "Zolo-Ryan",
   "license": "ISC",
   "devDependencies": {
+    "@faker-js/faker": "^8.4.1",
     "jest": "^29.7.0"
   },
   "dependencies": {
     "csv-parser": "^3.0.0",
+    "hll": "^2.0.0",
     "json2csv": "^6.0.0-alpha.2"
   }
 }

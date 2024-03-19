@@ -8,8 +8,48 @@ function parseSELECTQuery(query) {
     const limitMatch = limitSplit.length > 1 ? limitSplit[1].trim() : null;
     let limit = null;
     if (limitMatch) limit = parseInt(limitMatch);
-
     let isDistinct = false;
+    let isCountDistinct = false;
+    let distinctFields = [];
+
+    let isApproximateCount = false;
+    const approximateCountRegex = /APPROXIMATE_COUNT\((DISTINCT\s)?(.+?)\)/i;
+    const approximateCountMatch = query.match(approximateCountRegex);
+    if (approximateCountMatch) {
+      // console.log(approximateCountMatch);
+      isApproximateCount = true;
+      if (approximateCountMatch[1]) {
+        isCountDistinct = true;
+      }
+      let tempVal = approximateCountMatch[1] || "";
+      query = query.replace(
+        approximateCountRegex,
+        `COUNT(${tempVal}${approximateCountMatch[2]})`
+      );
+      // console.log("This is query", query);
+    }
+
+    const countDistinctRegex = /COUNT\((DISTINCT\s\((.*?)\))\)/gi;
+    let countDistinctMatch;
+    while ((countDistinctMatch = countDistinctRegex.exec(query)) !== null) {
+      isCountDistinct = true;
+      if (isApproximateCount) {
+        distinctFields.push(
+          ...countDistinctMatch[2]
+            .trim()
+            .split(",")
+            .map((field) => field.trim())
+        );
+      } else {
+        distinctFields.push(
+          ...countDistinctMatch[2]
+            .trim()
+            .split(",")
+            .map((field) => field.trim())
+        );
+      }
+    }
+
     if (query.toUpperCase().includes("SELECT DISTINCT")) {
       isDistinct = true;
       query = query.toUpperCase().replace("SELECT DISTINCT", "SELECT");
@@ -44,7 +84,7 @@ function parseSELECTQuery(query) {
       );
     }
 
-    const [, fields, table] = selectMatch;
+    let [, fields, table] = selectMatch;
 
     //parsing join part if it exists
     const { joinType, joinTable, joinCondition } = parseJoinClause(query);
@@ -61,6 +101,20 @@ function parseSELECTQuery(query) {
     const hasAggregateWithoutGroupBy =
       aggregateFunctionRegex.test(originalQuery) && !groupByFields;
 
+    const tempPlaceholder = "__TEMP_COMMA__";
+    fields = fields.replace(/\(([^)]+)\)/g, (match) =>
+      match.replace(/,/g, tempPlaceholder)
+    );
+    const parsedFields = fields
+      .split(",")
+      .map((field) =>
+        field
+          .trim()
+          .toLowerCase()
+          .replace(new RegExp(tempPlaceholder, "ig"), ",")
+      );
+    // console.log(fields,"These are parsed fields: ",parsedFields);
+
     return {
       table: table.trim().toLowerCase(),
       joinType,
@@ -69,51 +123,53 @@ function parseSELECTQuery(query) {
       whereClauses,
       groupByFields,
       isDistinct,
-      fields: fields.split(",").map((field) => field.trim().toLowerCase()),
+      fields: parsedFields,
       hasAggregateWithoutGroupBy,
       orderByFields,
       limit,
+      isApproximateCount,
+      isCountDistinct,
+      distinctFields,
     };
   } catch (error) {
     throw new Error("Query parsing error: Invalid SELECT format");
   }
 }
 
-function parseINSERTQuery(query){
+function parseINSERTQuery(query) {
   const INSERTRegex = /^INSERT\s+INTO\s+(.+)\s+\((.+)\)\s*VALUES\s*\((.+)\)/i;
   const INSERTMatch = query.trim().match(INSERTRegex);
-  if(!INSERTMatch) throw new Error("Tnvalid INSERT INTO syntax");
+  if (!INSERTMatch) throw new Error("Tnvalid INSERT INTO syntax");
 
-  const [,table, columns, values] = INSERTMatch;
+  const [, table, columns, values] = INSERTMatch;
   return {
-    type: 'INSERT',
+    type: "INSERT",
     table: table.trim().toLowerCase(),
-    columns: columns.split(',').map(column => column.trim().toLowerCase()),
-    values: values.split(",").map(column => column.trim())
-  }
+    columns: columns.split(",").map((column) => column.trim().toLowerCase()),
+    values: values.split(",").map((column) => column.trim()),
+  };
 }
 
-function parseDELETEQuery(query){
+function parseDELETEQuery(query) {
   query = query.trim();
   const whereSplit = query.split(/\sWHERE\s/i);
   query = whereSplit[0]; // everthing before where
 
   const DELETERegex = /^DELETE\s+FROM\s+(.+)/i;
   const DELETEMatch = query.match(DELETERegex);
-  if(!DELETEMatch)
-    throw new Error("Invalid DELETE Query passsed!");
+  if (!DELETEMatch) throw new Error("Invalid DELETE Query passsed!");
 
-  const [,table] = DELETEMatch;
+  const [, table] = DELETEMatch;
 
   const whereClause = whereSplit.length > 1 ? whereSplit[1].trim() : null;
   let whereClauses = [];
   if (whereClause) whereClauses = parseWhereClauses(whereClause);
 
   return {
-    type: 'DELETE',
+    type: "DELETE",
     table: table.trim().toLowerCase(),
-    whereClauses
-  }
+    whereClauses,
+  };
 }
 
 function parseGroupByClause(query) {
@@ -170,4 +226,9 @@ function parseWhereClauses(whereString) {
   });
 }
 
-module.exports = { parseSELECTQuery, parseJoinClause, parseINSERTQuery, parseDELETEQuery };
+module.exports = {
+  parseSELECTQuery,
+  parseJoinClause,
+  parseINSERTQuery,
+  parseDELETEQuery,
+};

@@ -1,5 +1,10 @@
-const {readCSV, writeCSV} = require("./csvStorage");
-const { parseSELECTQuery, parseINSERTQuery, parseDELETEQuery } = require("./queryParser");
+const { readCSV, readCSVForHLL, writeCSV } = require("./csvStorage.js");
+const {
+  parseSELECTQuery,
+  parseINSERTQuery,
+  parseDELETEQuery,
+} = require("./queryParser.js");
+const hll = require("hll");
 
 async function executeSELECTQuery(query) {
   try {
@@ -15,7 +20,19 @@ async function executeSELECTQuery(query) {
       orderByFields,
       limit,
       isDistinct,
+      isApproximateCount,
+      isCountDistinct,
+      distinctFields,
     } = parseSELECTQuery(query); //id,name
+    if (
+      isApproximateCount &&
+      fields.length === 1 &&
+      fields[0].toUpperCase() === "COUNT(*)" &&
+      whereClauses.length === 0
+    ) {
+      let hll = await readCSVForHLL(`${table}.csv`);
+      return [{ "APPROXIMATE_COUNT(*)": hll.estimate() }];
+    }
     //fails when file is not found
     let data = await readCSV(`${table}.csv`);
 
@@ -28,7 +45,7 @@ async function executeSELECTQuery(query) {
           data = performInnerJoin(data, joinData, joinCondition, fields, table);
           break;
         case "LEFT":
-          data = peformLeftJoin(data, joinData, joinCondition, fields, table);
+          data = performLeftJoin(data, joinData, joinCondition, fields, table);
           break;
         case "RIGHT":
           data = performRightJoin(data, joinData, joinCondition, fields, table);
@@ -45,7 +62,6 @@ async function executeSELECTQuery(query) {
           )
         : data;
     data = filteredData;
-
     // grouby domain
     let groupResults = data;
     if (hasAggregateWithoutGroupBy) {
@@ -87,8 +103,7 @@ async function executeSELECTQuery(query) {
         }
       });
       // applying distinct
-      if(isDistinct)
-        tempResult = { ...applyDistinct(tempResult, fields) };
+      if (isDistinct) tempResult = { ...applyDistinct(tempResult, fields) };
 
       //sorting - order by
       if (orderByFields) {
@@ -109,8 +124,7 @@ async function executeSELECTQuery(query) {
       return [tempResult];
     } else if (groupByFields) {
       groupResults = applyGroupBy(filteredData, groupByFields, fields);
-      if(isDistinct)
-        groupResults = applyDistinct(groupResults, fields);
+      if (isDistinct) groupResults = applyDistinct(groupResults, fields);
 
       if (orderByFields) {
         groupResults.sort((a, b) => {
@@ -127,6 +141,27 @@ async function executeSELECTQuery(query) {
     }
     data = groupResults;
 
+    if (isCountDistinct) {
+      if (isApproximateCount) {
+        let h = hll({ bitSampleSize: 12, digestSize: 128 });
+        data.forEach((row) =>
+          h.insert(distinctFields.map((field) => row[field]).join("|"))
+        );
+        // console.log("This is: ",[{ [`APPROXIMATE_${fields[0]}`]: h.estimate() }])
+        return [{ [`APPROXIMATE_${fields[0]}`]: h.estimate() }];
+      } else {
+        let distinctResults = [
+          ...new Map(
+            data.map((item) => [
+              distinctFields.map((field) => item[field]).join("|"),
+              item,
+            ])
+          ).values(),
+        ];
+        // console.log("This is :",[{ [fields[0]]: distinctResults.length }])
+        return [{ [fields[0]]: distinctResults.length }];
+      }
+    }
     //select
     const result = [];
     data.forEach((row) => {
@@ -137,8 +172,7 @@ async function executeSELECTQuery(query) {
       });
       if (Object.keys(filteredRow).length !== 0) result.push(filteredRow);
     }); // [] of {id,name}
-    if(isDistinct)
-      data = applyDistinct(result, fields);
+    if (isDistinct) data = applyDistinct(result, fields);
     else data = result;
     // order by
     if (orderByFields) {
@@ -159,40 +193,42 @@ async function executeSELECTQuery(query) {
   }
 }
 
-async function executeINSERTQuery(query){
-  const {table,columns, values} = parseINSERTQuery(query);
+async function executeINSERTQuery(query) {
+  const { table, columns, values } = parseINSERTQuery(query);
 
   //currently whole file is loaded into memory and then written back into file
   const data = await readCSV(`${table}.csv`);
 
   const newRow = {};
-  columns.forEach((column,index) => {
+  columns.forEach((column, index) => {
     let value = values[index];
-    if(value.startsWith("'") && value.endsWith("'"))
-      value = value.substring(1,value.length-1);
+    if (value.startsWith("'") && value.endsWith("'"))
+      value = value.substring(1, value.length - 1);
     newRow[column] = value;
-  })
+  });
 
   data.push(newRow);
 
-  await writeCSV(`${table}.csv`,data);
+  await writeCSV(`${table}.csv`, data);
 
-  return {message: `Row inserted Successfully`};
+  return { message: `Row inserted Successfully` };
 }
 
-async function executeDELETEQuery(query){
-  const {type, table ,whereClauses} = parseDELETEQuery(query);
+async function executeDELETEQuery(query) {
+  const { type, table, whereClauses } = parseDELETEQuery(query);
   let data = await readCSV(`${table}.csv`);
 
-  if(whereClauses.length > 0){
+  if (whereClauses.length > 0) {
     // rows which satisfy the where clauses will be removed, hence must return false value, hence ! used
-    data = data.filter(row => !whereClauses.every(clause => evaluateCondition(row,clause)));
-  }else {
+    data = data.filter(
+      (row) => !whereClauses.every((clause) => evaluateCondition(row, clause))
+    );
+  } else {
     // no wherclause provided so delete entire table
     data = [];
   }
-  await writeCSV(`${table}.csv`,data);
-  return {message: 'Rows deleted successfully.'}
+  await writeCSV(`${table}.csv`, data);
+  return { message: "Rows deleted successfully." };
 }
 
 function applyDistinct(data, fields) {
@@ -215,9 +251,10 @@ function evaluateCondition(row, clause) {
   const rowValue = parseValue(row[field]);
   let conditionValue = parseValue(value);
 
-  if(operator === 'LIKE'){
-    const regexPattern = '^' + value.replace(/%/g,'.*').replace(/_/g,'.') + '$';
-    const regex = new RegExp(regexPattern,'i');
+  if (operator === "LIKE") {
+    const regexPattern =
+      "^" + value.replace(/%/g, ".*").replace(/_/g, ".") + "$";
+    const regex = new RegExp(regexPattern, "i");
     return regex.test(rowValue);
   }
 
@@ -361,7 +398,7 @@ function performInnerJoin(data, joinData, joinCondition, fields, table) {
   return data;
 }
 
-function peformLeftJoin(data, joinData, joinCondition, fields, table) {
+function performLeftJoin(data, joinData, joinCondition, fields, table) {
   return data.flatMap((mainRow) => {
     const matchingJoinRows = joinData.filter((joinRow) => {
       const mainValue = mainRow[joinCondition.left.split(".")[1]];
@@ -444,4 +481,4 @@ function createResultRow(
   return resultRow;
 }
 
-module.exports = {executeSELECTQuery, executeINSERTQuery, executeDELETEQuery};
+module.exports = { executeSELECTQuery, executeINSERTQuery, executeDELETEQuery };

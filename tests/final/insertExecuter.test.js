@@ -1,5 +1,5 @@
-const { executeINSERTQuery } = require('../src/index.js');
-const { readCSV, writeCSV } = require('../src/csvStorage.js');
+const { executeINSERTQuery } = require('../../src/index.js');
+const { readCSV, writeCSV } = require('../../src/csvStorage.js');
 const fs = require('fs');
 
 // Helper function to create grades.csv with initial data

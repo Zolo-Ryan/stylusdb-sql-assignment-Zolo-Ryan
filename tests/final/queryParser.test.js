@@ -2,14 +2,13 @@ const {
   parseSELECTQuery,
   parseINSERTQuery,
   parseDELETEQuery,
-} = require("../src/queryParser.js");
+} = require("../../src/queryParser.js");
 
 // id,name, will return fields: [id,name,""]; this is a problem
 //it should throw error
 test("Parse SQL Query", () => {
   const query = "SELECT id,name FROM sample";
   const parsed = parseSELECTQuery(query);
-
   expect(parsed).toEqual({
     fields: ["id", "name"],
     table: "sample",
@@ -22,6 +21,9 @@ test("Parse SQL Query", () => {
     orderByFields: null,
     limit: null,
     isDistinct: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -59,6 +61,9 @@ test("Parse SQL Query with Multiple WHERE Clauses", () => {
     orderByFields: null,
     limit: null,
     isDistinct: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -78,6 +83,9 @@ test("Parse SQL Query with INNER JOIN", () => {
     orderByFields: null,
     limit: null,
     isDistinct: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -103,6 +111,9 @@ test("Parse SQL Query with INNER JOIN and WHERE Clause", () => {
     orderByFields: null,
     limit: null,
     isDistinct: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -190,6 +201,9 @@ test("Parse SQL Query with Basic DISTINCT", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -208,6 +222,9 @@ test("Parse SQL Query with DISTINCT and Multiple Columns", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -226,6 +243,9 @@ test("Parse SQL Query with DISTINCT and WHERE Clause", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -248,6 +268,9 @@ test("Parse SQL Query with DISTINCT and JOIN Operations", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -266,6 +289,9 @@ test("Parse SQL Query with DISTINCT, ORDER BY, and LIMIT", () => {
     orderByFields: [{ fieldName: "AGE", order: "DESC" }],
     limit: 2,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -284,6 +310,9 @@ test("Parse SQL Query with DISTINCT on All Columns", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -302,6 +331,9 @@ test("Parse SQL Query with LIKE Clause", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -320,6 +352,9 @@ test("Parse SQL Query with LIKE Clause and Wildcards", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -342,6 +377,9 @@ test("Parse SQL Query with Multiple LIKE Clauses", () => {
     orderByFields: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -361,6 +399,9 @@ test("Parse SQL Query with LIKE and ORDER BY Clauses", () => {
     joinCondition: null,
     limit: null,
     hasAggregateWithoutGroupBy: false,
+    isApproximateCount: false,
+    isCountDistinct: false,
+    distinctFields: [],
   });
 });
 
@@ -383,5 +424,26 @@ test("Testing Delete query parser", () => {
     type: "DELETE",
     table: "students",
     whereClauses: [{ field: "id", operator: ">", value: "4" }],
+  });
+});
+
+test('Parse SQL Query with APPROXIMATE_COUNT Function', () => {
+  const query = "SELECT APPROXIMATE_COUNT(id) FROM student";
+  const parsed = parseSELECTQuery(query);
+  expect(parsed).toEqual({
+      fields: ['count(id)'], // Assuming APPROXIMATE_COUNT is replaced with COUNT for simplicity
+      table: 'student',
+      whereClauses: [],
+      isDistinct: false,
+      isApproximateCount: true, // This flag should be true when APPROXIMATE_COUNT is used
+      groupByFields: null,
+      joinType: null,
+      joinTable: null,
+      joinCondition: null,
+      orderByFields: null,
+      limit: null,
+      hasAggregateWithoutGroupBy: false,
+      isCountDistinct: false,
+      distinctFields: []
   });
 });
