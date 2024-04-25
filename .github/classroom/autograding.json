@@ -11,16 +11,6 @@
       "points": 10
     },
     {
-      "name": "STEP-Final Test",
-      "setup": "npm install",
-      "run": "npm run test:final",
-      "input": "",
-      "output": "",
-      "comparison": "exact",
-      "timeout": 10,
-      "points": 200
-    },
-    {
       "name": "STEP-2 Test",
       "setup": "npm install",
       "run": "npm run test:2",
@@ -208,6 +198,16 @@
       "comparison": "exact",
       "timeout": 10,
       "points": 10
+    },
+    {
+      "name": "STEP-Final Test",
+      "setup": "npm install",
+      "run": "npm run test:final",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 10,
+      "points": 0
     }
   ]
 }
