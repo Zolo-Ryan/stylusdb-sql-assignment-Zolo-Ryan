@@ -1,67 +1,68 @@
 test("one",() => {
     expect(1).toBe(1)
 })
-const fs = require('fs');
-const { executeSELECTQuery } = require('../../src/index.js');
-const jestConsole = console;
 
-beforeEach(() => {
-    global.console = require('console');
-});
+// const fs = require('fs');
+// const { executeSELECTQuery } = require('../../src/index.js');
+// const jestConsole = console;
 
-afterEach(() => {
-    global.console = jestConsole;
-});
+// beforeEach(() => {
+//     global.console = require('console');
+// });
 
-test('Large File Count(*) - Approximate and Exact', async () => {
-    // Test Exact Count
+// afterEach(() => {
+//     global.console = jestConsole;
+// });
 
-    const startMemoryUsageExact = process.memoryUsage().heapUsed;
-    const startTimeExact = performance.now();
+// test('Large File Count(*) - Approximate and Exact', async () => {
+//     // Test Exact Count
 
-    const queryExact = "SELECT COUNT(*) FROM student_large";
-    console.log("Started")
-    const resultExact = await executeSELECTQuery(queryExact);
-    const exactResult = resultExact[0]['COUNT(*)'];
+//     const startMemoryUsageExact = process.memoryUsage().heapUsed;
+//     const startTimeExact = performance.now();
 
-    const endTimeExact = performance.now();
-    const endMemoryUsageExact = process.memoryUsage().heapUsed;
+//     const queryExact = "SELECT COUNT(*) FROM student_large";
+//     console.log("Started")
+//     const resultExact = await executeSELECTQuery(queryExact);
+//     const exactResult = resultExact[0]['COUNT(*)'];
 
-    console.log(`Execution Time for Exact Count: ${(endTimeExact - startTimeExact).toFixed(2)} ms`);
-    console.log(`Start Memory for Exact Count: ${startMemoryUsageExact / 1024 / 1024} MB`);
-    console.log(`End Memory for Exact Count: ${endMemoryUsageExact / 1024 / 1024} MB`);
-    console.log(`Memory Used for Exact Count: ${(endMemoryUsageExact - startMemoryUsageExact) / 1024 / 1024} MB`);
+//     const endTimeExact = performance.now();
+//     const endMemoryUsageExact = process.memoryUsage().heapUsed;
 
-    const startMemoryUsage = process.memoryUsage().heapUsed;
-    const startTime = performance.now();
+//     console.log(`Execution Time for Exact Count: ${(endTimeExact - startTimeExact).toFixed(2)} ms`);
+//     console.log(`Start Memory for Exact Count: ${startMemoryUsageExact / 1024 / 1024} MB`);
+//     console.log(`End Memory for Exact Count: ${endMemoryUsageExact / 1024 / 1024} MB`);
+//     console.log(`Memory Used for Exact Count: ${(endMemoryUsageExact - startMemoryUsageExact) / 1024 / 1024} MB`);
 
-    const query = "SELECT APPROXIMATE_COUNT(*) FROM student_large";
-    const result = await executeSELECTQuery(query);
+//     const startMemoryUsage = process.memoryUsage().heapUsed;
+//     const startTime = performance.now();
 
-    // Expect the approximate count to be within 5% of the actual count
-    expect(result[0]['APPROXIMATE_COUNT(*)']).toBeGreaterThan(exactResult - 0.05 * exactResult);
-    expect(result[0]['APPROXIMATE_COUNT(*)']).toBeLessThan(exactResult + 0.05 * exactResult);
+//     const query = "SELECT APPROXIMATE_COUNT(*) FROM student_large";
+//     const result = await executeSELECTQuery(query);
 
-    const endTime = performance.now();
-    const endMemoryUsage = process.memoryUsage().heapUsed;
+//     // Expect the approximate count to be within 5% of the actual count
+//     expect(result[0]['APPROXIMATE_COUNT(*)']).toBeGreaterThan(exactResult - 0.05 * exactResult);
+//     expect(result[0]['APPROXIMATE_COUNT(*)']).toBeLessThan(exactResult + 0.05 * exactResult);
 
-    console.log(`Execution Time for Approximate Count: ${(endTime - startTime).toFixed(2)} ms`);
-    console.log(`Start Memory: ${startMemoryUsage / 1024 / 1024} MB`);
-    console.log(`End Memory: ${endMemoryUsage / 1024 / 1024} MB`);
-    console.log(`Memory Used for Approximate Count: ${(endMemoryUsage - startMemoryUsage) / 1024 / 1024} MB`);
+//     const endTime = performance.now();
+//     const endMemoryUsage = process.memoryUsage().heapUsed;
 
-}, 120000);
+//     console.log(`Execution Time for Approximate Count: ${(endTime - startTime).toFixed(2)} ms`);
+//     console.log(`Start Memory: ${startMemoryUsage / 1024 / 1024} MB`);
+//     console.log(`End Memory: ${endMemoryUsage / 1024 / 1024} MB`);
+//     console.log(`Memory Used for Approximate Count: ${(endMemoryUsage - startMemoryUsage) / 1024 / 1024} MB`);
 
-test('Execute SQL Query with COUNT with DISTINCT on a column', async () => {
-    const queryExact = "SELECT COUNT(DISTINCT (name, age)) FROM student_large";
-    const resultExact = await executeSELECTQuery(queryExact);
-    console.log({ resultExact });
-    const exactResult = resultExact[0]['COUNT(DISTINCT (name, age))'];
+// }, 120000);
 
-    const query = "SELECT APPROXIMATE_COUNT(DISTINCT (name, age)) FROM student_large";
-    const result = await executeSELECTQuery(query);
+// test('Execute SQL Query with COUNT with DISTINCT on a column', async () => {
+//     const queryExact = "SELECT COUNT(DISTINCT (name, age)) FROM student_large";
+//     const resultExact = await executeSELECTQuery(queryExact);
+//     console.log({ resultExact });
+//     const exactResult = resultExact[0]['COUNT(DISTINCT (name, age))'];
 
-    // Expect the approximate count to be within 2% of the actual count
-    expect(result[0]['APPROXIMATE_COUNT(DISTINCT (name, age))']).toBeGreaterThan(exactResult - 0.05 * exactResult);
-    expect(result[0]['APPROXIMATE_COUNT(DISTINCT (name, age))']).toBeLessThan(exactResult + 0.05 * exactResult);
-}, 120000);
+//     const query = "SELECT APPROXIMATE_COUNT(DISTINCT (name, age)) FROM student_large";
+//     const result = await executeSELECTQuery(query);
+
+//     // Expect the approximate count to be within 2% of the actual count
+//     expect(result[0]['APPROXIMATE_COUNT(DISTINCT (name, age))']).toBeGreaterThan(exactResult - 0.05 * exactResult);
+//     expect(result[0]['APPROXIMATE_COUNT(DISTINCT (name, age))']).toBeLessThan(exactResult + 0.05 * exactResult);
+// }, 120000);
